@@ -1,6 +1,8 @@
 const path = require('path');
 const express = require('express');
 
+console.log('Testing ssh connection')
+
 const app = express();
 
 const port = process.env.PORT || 3000;
