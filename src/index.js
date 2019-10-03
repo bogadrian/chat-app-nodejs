@@ -17,7 +17,7 @@ const io = socketio(server);
 const port = process.env.PORT || 3000;
 // set public path to deliver public files 
 const publicPath = path.join(__dirname, '../public');
-
+// static middleware express function to serve the public folders 
 app.use(express.static(publicPath));
 
 
@@ -29,45 +29,60 @@ io.on('connection', (socket) => {
 
     //set listner for room
     socket.on('join', ({ username, room }, callback) => {
+        // call addUser here to get all the data abut user such as id from socket.id, username and room he has signed up with 
         const { error, user } = addUser({ id: socket.id, username, room })
 
         if (error) {
             return callback(error)
         }
-
+        // call socket.join() in order to be able to join a specific chat room 
         socket.join(user.room);
 
         // emit welcome message
-        socket.emit('message', generateMessage('Welcome to the Chat'));
+        socket.emit('message', generateMessage('Admin', 'Welcome to the Chat'));
         // emit general broadcast message
-        socket.broadcast.to(user.room).emit('message', generateMessage(`${user.username} has joined the ${user.room}`))
+        socket.broadcast.to(user.room).emit('message', generateMessage('Admin', `${user.username} has joined the ${user.room}`));
+        // update users list in chat room when someone joins
+        socket.to(user.room).emit('roomData', {
+            room: user.room,
+            users: getUserInRoom(user.room)
+        })
     });
 
 
 
     // enable server to listen for mesages from user
     socket.on('chatUser', (message, callback) => {
+        const user = getUser(socket.id);
         // set words filter
         filter.addWords('pula', 'ma-ta', 'mata', 'sugi', 'cazzo')
         if (filter.isProfane(message)) {
             return callback('Bad language isn\'t admited!')
         };
 
-        io.emit('singleMessage', generateMessage(message));
+        io.to(user.room).emit('singleMessage', generateMessage(user.username, message));
         callback()
     });
 
     // send ser disconnect message to everyone
     socket.on('disconnect', () => {
+        // call removeUser to delete a user form chat room 
         const user = removeUser(socket.id);
         if (user) {
-            io.to(user.room).emit('message', generateMessage(`${user.username} has left the chat!`))
+            io.to(user.room).emit('message', generateMessage('Admin', `${user.username} has left the chat!`));
+            // update users in chat room when someon leaves
+            socket.to(user.room).emit('roomData', {
+                room: user.room,
+                users: getUserInRoom(user.room)
+            });
         }
     });
 
     // enable user geolocation emit to everyone
     socket.on('location', (position, callback) => {
-        io.emit('userLocation', generateLocation(`https://google.com/maps?q=${position.latitude},${position.longitude}`))
+        // call getUser to fetch the ser here and the room he has signed up to 
+        const user = getUser(socket.id);
+        io.to(user.room).emit('userLocation', generateLocation(user.username, `https://google.com/maps?q=${position.latitude},${position.longitude}`))
         callback()
     });
 });
