@@ -29,13 +29,14 @@ io.on('connection', (socket) => {
 
     //set listner for room
     socket.on('join', ({ username, room }, callback) => {
-        // call addUser here to get all the data abut user such as id from socket.id, username and room he has signed up with 
+        // call addUser here to get all the data about user such as id from socket.id, username and room he has signed up with 
         const { error, user } = addUser({ id: socket.id, username, room })
 
+        //check if errore exists then call callback with the errore
         if (error) {
             return callback(error)
         }
-        // call socket.join() in order to be able to join a specific chat room 
+        // call socket.join() in order to be able to join a specific chat room - defined when user join the chat  
         socket.join(user.room);
 
         // emit welcome message
@@ -49,8 +50,6 @@ io.on('connection', (socket) => {
         })
     });
 
-
-
     // enable server to listen for mesages from user
     socket.on('chatUser', (message, callback) => {
         const user = getUser(socket.id);
@@ -60,17 +59,19 @@ io.on('connection', (socket) => {
             return callback('Bad language isn\'t admited!')
         };
 
+        // emit single message from specific user
         io.to(user.room).emit('singleMessage', generateMessage(user.username, message));
         callback()
     });
 
-    // send ser disconnect message to everyone
+    // send message disconnect to everyone
     socket.on('disconnect', () => {
         // call removeUser to delete a user form chat room 
         const user = removeUser(socket.id);
         if (user) {
+            // emit the message user has left the chat room 
             io.to(user.room).emit('message', generateMessage('Admin', `${user.username} has left the chat!`));
-            // update users in chat room when someon leaves
+            // update users in chat room when someone leaves
             socket.to(user.room).emit('roomData', {
                 room: user.room,
                 users: getUserInRoom(user.room)
@@ -82,6 +83,7 @@ io.on('connection', (socket) => {
     socket.on('location', (position, callback) => {
         // call getUser to fetch the ser here and the room he has signed up to 
         const user = getUser(socket.id);
+        // emit user location 
         io.to(user.room).emit('userLocation', generateLocation(user.username, `https://google.com/maps?q=${position.latitude},${position.longitude}`))
         callback()
     });

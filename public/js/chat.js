@@ -8,14 +8,13 @@ const $fieldInput = form.querySelector('input');
 const $buttonForm = form.querySelector('button');
 const $sendLocationButton = document.querySelector('#send-location');
 const $messages = document.querySelector('#messages');
-//const $locationMessage = document.querySelector('#location');
+
 
 
 //using Qs library to get the query string as an object
 const { username, room } = Qs.parse(location.search, {
     ignoreQueryPrefix: true
-})
-console.log(room)
+});
 
 //Templates
 const messageTemplate = document.querySelector('#message-template').innerHTML;
@@ -47,6 +46,7 @@ const autoscroll = () => {
 }
 // enable the listener socket for message on client side
 socket.on('message', (message) => {
+    // use Mustache template generator
     const html = Mustache.render(messageTemplate, {
         username: message.username,
         message: message.text
@@ -66,6 +66,7 @@ form.addEventListener('submit', (e) => {
     // disable form after the first submit
     $buttonForm.setAttribute('disabled', 'disabled')
 
+    // emit text message from client side to the server
     socket.emit('chatUser', message, (error) => {
         //renable form submit aftre message 
         $buttonForm.removeAttribute('disabled');
@@ -73,16 +74,14 @@ form.addEventListener('submit', (e) => {
         $fieldInput.focus();
         if (error) {
             return console.log(error)
-        }
-        console.log(message)
-    })
-
-
+        };
+    });
 });
 
 //listen for the single every single message 
 socket.on('singleMessage', (message) => {
     console.log(message)
+    //render template with Mustache 
     const html = Mustache.render(messageTemplate, {
         username: message.username,
         message: message.text,
@@ -95,6 +94,7 @@ socket.on('singleMessage', (message) => {
 
 //listen for the users list
 socket.on('roomData', ({ users, room }) => {
+    // rendere template with Mustache
     const html = Mustache.render(sidebarTemplate, {
         room,
         users
@@ -109,6 +109,7 @@ $sendLocationButton.addEventListener('click', () => {
         return alert('Your device does not support geolocation or it is not enabled!')
     };
 
+    // disable send location button once it was sent
     $sendLocationButton.setAttribute('disabled', 'disabled');
 
     // emit to the server the current user location and wait for the callback of aknolwedgnment 
@@ -118,16 +119,15 @@ $sendLocationButton.addEventListener('click', () => {
             longitude: position.coords.longitude,
             createdAt: new Date().getTime()
         }, () => {
+            // remove disable for send location button 
             $sendLocationButton.removeAttribute('disabled');
             console.log('Location shared');
         });
     });
-
 });
 
 // listen for others users location sharing 
 socket.on('userLocation', (message) => {
-    console.log(message.url)
     //render link to enable open location 
     const html = Mustache.render(locationTemplate, {
         username: message.username,
@@ -136,12 +136,11 @@ socket.on('userLocation', (message) => {
     })
     $messages.insertAdjacentHTML('beforeend', html)
 });
-
+// send join event to the server and redirect to index.html once n errore in joining occurs
 socket.emit('join', { username, room }, (error) => {
     if (error) {
         alert(error);
         location.href = '/'
     }
-
 });
 
